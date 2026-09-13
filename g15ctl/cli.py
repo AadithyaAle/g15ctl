@@ -491,8 +491,15 @@ def main(argv: list[str] | None = None) -> int:
         args.func = cmd_status
         args.json = False
 
-    logs.setup(verbose=args.verbose, quiet=args.quiet,
-               to_file=args.command in ("daemon", "restore", "reset"))
+    # `monitor` draws with curses and owns the terminal, so log records must
+    # never go to stderr there; they still go to the log file when we are root.
+    interactive_fullscreen = args.command == "monitor"
+    logs.setup(
+        verbose=args.verbose,
+        quiet=args.quiet,
+        to_file=args.command in ("daemon", "restore", "reset", "monitor"),
+        console=not interactive_fullscreen,
+    )
     try:
         return args.func(args)
     except KeyboardInterrupt:

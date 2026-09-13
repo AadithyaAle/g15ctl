@@ -164,6 +164,10 @@ class Dashboard:
         """Return False to quit."""
         if key in (ord("q"), ord("Q"), 27):
             return False
+        if key == curses.KEY_RESIZE:
+            # Drop the old geometry and repaint from scratch.
+            curses.update_lines_cols()
+            return True
 
         try:
             if key in (ord("a"), ord("A")):
@@ -199,8 +203,14 @@ class Dashboard:
     # -- loop ---------------------------------------------------------------
 
     def loop(self, stdscr) -> int:
-        curses.curs_set(0)
+        try:
+            curses.curs_set(0)
+        except curses.error:
+            pass  # some terminals cannot hide the cursor
         stdscr.nodelay(True)
+        # Never let a write past the last column scroll the screen; that is what
+        # shifts the footer and smears the layout.
+        stdscr.scrollok(False)
         curses.use_default_colors()
         for index, colour in enumerate(
             (curses.COLOR_GREEN, curses.COLOR_YELLOW, curses.COLOR_RED,

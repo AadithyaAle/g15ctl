@@ -29,8 +29,14 @@ _DATEFMT = "%Y-%m-%d %H:%M:%S"
 _configured = False
 
 
-def setup(verbose: bool = False, quiet: bool = False, to_file: bool = True) -> None:
-    """Configure root logging. Safe to call more than once."""
+def setup(verbose: bool = False, quiet: bool = False, to_file: bool = True,
+          console: bool = True) -> None:
+    """Configure root logging. Safe to call more than once.
+
+    Set ``console=False`` for full-screen curses output. curses owns the
+    terminal, so any stray write to stderr corrupts the display -- which is
+    exactly what happened when the dashboard logged a fan change while drawing.
+    """
     global _configured
     if _configured:
         return
@@ -39,15 +45,25 @@ def setup(verbose: bool = False, quiet: bool = False, to_file: bool = True) -> N
     root = logging.getLogger()
     root.setLevel(logging.DEBUG if verbose else logging.INFO)
 
-    # When running under systemd the journal already timestamps entries, so a
-    # bare format avoids duplicated timestamps in `journalctl`.
-    under_systemd = bool(os.environ.get("JOURNAL_STREAM") or os.environ.get("INVOCATION_ID"))
-    stream = logging.StreamHandler(sys.stderr)
-    stream.setLevel(logging.WARNING if quiet else (logging.DEBUG if verbose else logging.INFO))
-    stream.setFormatter(
-        logging.Formatter("%(levelname)-7s %(message)s" if under_systemd else _FMT, _DATEFMT)
-    )
-    root.addHandler(stream)
+    if console:
+        # When running under systemd the journal already timestamps entries, so
+        # a bare format avoids duplicated timestamps in `journalctl`.
+        under_systemd = bool(
+            os.environ.get("JOURNAL_STREAM") or os.environ.get("INVOCATION_ID")
+        )
+        stream = logging.StreamHandler(sys.stderr)
+        stream.setLevel(
+            logging.WARNING if quiet else (logging.DEBUG if verbose else logging.INFO)
+        )
+        stream.setFormatter(
+            logging.Formatter("%(levelname)-7s %(message)s" if under_systemd else _FMT,
+                              _DATEFMT)
+        )
+        root.addHandler(stream)
+    else:
+        # Without any handler, Python prints "No handlers could be found" style
+        # fallback output to stderr on some paths. A null sink prevents that.
+        root.addHandler(logging.NullHandler())
 
     if not to_file or os.geteuid() != 0:
         return
