@@ -179,6 +179,13 @@ class AwccAcpiBackend(Backend):
         self._profile_ids = profiles or {
             C.PROFILE_IDS[i]: i for i in (0xA0, 0xA1, 0xA3, 0xA5)
         }
+        # The profile to return to when leaving G-Mode. 0x14/0x0A reports the
+        # firmware's own default (0xA0 on the 5530).
+        base = self.wmax.query(C.M_THERMAL_INFO, C.OP_GET_BASE_PROFILE)
+        if base not in self._profile_ids.values():
+            base = self._profile_ids.get("balanced") or next(
+                iter(self._profile_ids.values()), 0xA0)
+        self._base_profile = base
         # Deduplicate while preserving order; resource IDs can appear both as
         # 0x32 and as 0x101-style aliases that mask down to the same sensor.
         self._fan_ids = tuple(dict.fromkeys(fans)) or C.DEFAULT_FAN_IDS
@@ -232,13 +239,64 @@ class AwccAcpiBackend(Backend):
     # -- G-Mode -------------------------------------------------------------
 
     def get_gmode(self) -> bool | None:
-        value = self.wmax.query(C.M_GAME_SHIFT, C.OP_GET_GAME_SHIFT)
-        return None if value is None else bool(value)
+        """True if either half of G-Mode is asserted.
+
+        The 0xAB profile is what actually drives the fans, so it alone counts
+        as being in G-Mode even if the Game Shift flag did not take.
+        """
+        flag = self.wmax.query(C.M_GAME_SHIFT, C.OP_GET_GAME_SHIFT)
+        profile = self.wmax.query(C.M_THERMAL_INFO, C.OP_GET_CURRENT_PROFILE)
+        if flag is None and profile is None:
+            return None
+        return bool(flag) or profile == C.PROFILE_GMODE
 
     def set_gmode(self, enabled: bool) -> None:
-        result = self.wmax.call(C.M_GAME_SHIFT, C.OP_SET_GAME_SHIFT, 1 if enabled else 0)
+        """Enter or leave G-Mode.
+
+        G-Mode is *two* pieces of state, not one: the 0xAB thermal profile and
+        the Game Shift flag. Measured at idle on a G15 5530 (BIOS 1.34.0),
+        CPU fan RPM:
+
+            profile 0xA0, flag 0   ->  1042   (baseline)
+            profile 0xA0, flag 1   ->  1024   (flag alone does NOTHING)
+            profile 0xAB, flag 0   ->  4373
+            profile 0xAB, flag 1   ->  4991   (both, full G-Mode)
+
+        So the flag alone is inert and the profile does the work, with the flag
+        adding a further step on top. Setting only the flag -- which this
+        backend used to do -- reported success while changing nothing.
+
+        Note 0xAB is deliberately absent from the firmware's enumerated
+        profile table (0x14/0x03 returns only A0/A1/A3/A5), yet 0x15/0x01
+        accepts it. It therefore has to be requested explicitly and cannot be
+        discovered, which is why it is a named constant.
+        """
+        if enabled:
+            result = self.wmax.call(
+                C.M_THERMAL_CONTROL, C.OP_ACTIVATE_PROFILE, C.PROFILE_GMODE
+            )
+            if result in C.WMAX_ERRORS:
+                raise BackendError(
+                    "firmware rejected the G-Mode profile %#x (%#x)"
+                    % (C.PROFILE_GMODE, result)
+                )
+            # The flag is a bonus step; do not fail the whole operation if the
+            # firmware declines it, because the profile already did the work.
+            flag = self.wmax.call(C.M_GAME_SHIFT, C.OP_SET_GAME_SHIFT, 1)
+            if flag in C.WMAX_ERRORS:
+                log.warning("G-Mode profile applied but Game Shift flag "
+                            "was rejected (%#x)", flag)
+            return
+
+        self.wmax.call(C.M_GAME_SHIFT, C.OP_SET_GAME_SHIFT, 0)
+        # Leaving the flag set while the profile is still 0xAB would keep the
+        # fans pinned, so restore a normal profile too.
+        result = self.wmax.call(
+            C.M_THERMAL_CONTROL, C.OP_ACTIVATE_PROFILE, self._base_profile
+        )
         if result in C.WMAX_ERRORS:
-            raise BackendError("firmware rejected G-Mode toggle (%#x)" % result)
+            raise BackendError("could not leave G-Mode: firmware rejected "
+                               "profile %#x (%#x)" % (self._base_profile, result))
 
     # -- fans ---------------------------------------------------------------
 

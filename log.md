@@ -242,12 +242,38 @@ Boost bytes are exactly `round(pct × 255/100)`. RPM is monotonic in boost, and
 100 % reaches 4716/4773 RPM against the firmware's declared 4800 maximum —
 i.e. **98–99 % of rated speed**. This is real proportional control, not on/off.
 
-### 5.3 G-Mode (test 4) and safety (test 5)
+### 5.3 G-Mode (test 4) — initially wrong, see §6.1
 
-G-Mode toggled on and off correctly. `reset` cleared boost → 0, G-Mode → off,
-profile → balanced.
+The first version of this test checked only that the G-Mode *flag* read back
+as `ON`, and it passed. That was a **false pass**: G-Mode was not actually
+engaged. Measuring idle CPU fan RPM with `tools/gmode-test.py` exposed it:
 
-### 5.4 Independent cross-check (test 6)
+| Thermal profile | Game Shift flag | CPU fan | Δ vs baseline |
+|---|:-:|---|---|
+| `0xA0` balanced | 0 | 1042 | — (baseline) |
+| `0xA0` balanced | **1** | **1024** | **−19 — no effect** |
+| `0xAB` | 0 | 4373 | +3330 |
+| **`0xAB`** | **1** | **4991** | **+3949 — true G-Mode** |
+| `0xA1` balanced-performance | 0 | 2700 | +1657 |
+
+**G-Mode is two pieces of state, not one.** The Game Shift flag (`0x25`) is
+inert on its own; the `0xAB` thermal profile (`0x15/0x01`) does the work, and
+the flag adds a further step on top. Setting only the flag — which the first
+implementation did — reported success while changing nothing.
+
+Note `0xAB` is deliberately **absent** from the firmware's enumerated profile
+table (§3.4), yet `0x15/0x01` accepts it. It cannot be discovered by
+enumeration and must be requested explicitly.
+
+Also of note: G-Mode reaches 4991/5000 RPM, *above* the 4800 RPM that
+`0x14/0x09` reports as the maximum. The reported maximum is therefore a
+nominal figure, not a hard ceiling.
+
+### 5.4 Safety (test 5)
+
+`reset` cleared boost → 0, G-Mode → off, profile → balanced.
+
+### 5.5 Independent cross-check (test 6)
 
 | Fan | via `WMAX` | via `dell_ddv` | Δ |
 |---|---|---|---|
@@ -257,11 +283,11 @@ profile → balanced.
 Two independent kernel paths agree within ~3 %, the residual being sample
 timing. The interface is decoded correctly.
 
-### 5.5 Test totals
+### 5.6 Test totals
 
 ```
-Unit tests      63/63 pass   (no hardware required)
-Hardware checks 17/17 pass
+Unit tests      66/66 pass   (no hardware required)
+Hardware checks 19/19 pass
 ```
 
 ---
@@ -270,14 +296,54 @@ Hardware checks 17/17 pass
 
 Recorded because each was caught by a check rather than by inspection.
 
+### 6.1 The worst one: G-Mode did nothing
+
+This bug deserves its own section because of *how* it survived.
+
+**Symptom.** `g15ctl mode g-mode` printed success and the flag read back `ON`,
+but the fans did not change. Reported by the user, not by any test.
+
+**Why the tests missed it.** Two compounding mistakes, both mine:
+
+1. The hardware test asserted on a **flag readback** rather than on a physical
+   effect. `0x25/0x02` returning 1 only proves the flag was stored.
+2. When the test initially *failed* (the profile read `0xA0`, not `0xAB`), the
+   fix applied was to make `get_mode()` trust the flag first — so the test
+   went green while the underlying behaviour stayed broken. **A failing test
+   was silenced instead of diagnosed.**
+
+**Root cause.** G-Mode requires `0x15/0x01` with profile `0xAB` *and*
+`0x25/0x01`. Only the latter was implemented. Quantified in §5.3: the flag
+alone moves the fans by −19 RPM, i.e. not at all.
+
+**Fix.** `set_gmode(True)` now activates `0xAB` then sets the flag;
+`set_gmode(False)` clears the flag *and* restores the base profile from
+`0x14/0x0A`, since clearing only the flag would leave the fans pinned.
+
+**Test changes.** `verify.sh` test 4 now settles to a clean idle baseline and
+requires a **>1000 RPM rise**, checks the raw profile really is `0xAB`, and
+checks the fans come back down afterwards. The unit-test fake now models the
+measured RPM per `(profile, flag)` pair, so assertions are on effect rather
+than on flags. Both new tests were confirmed to fail against the old
+implementation (`AssertionError: 1024 not greater than 2042`).
+
+**Lesson.** For hardware control, assert on the physical consequence. A write
+that the firmware accepts and stores is not the same as a write that does
+something.
+
+### 6.2 The rest
+
 | # | Bug | Found by | Fix |
 |---|---|---|---|
-| 1 | **G-Mode misdetected.** Code inferred G-Mode from `0x14/0x0B` returning `0xAB`. On BIOS 1.34.0 the profile keeps reporting `0xA0` while Game Shift is on — G-Mode is an *independent overlay*. | `verify.sh` test 4 | Consult `0x25/0x02` first; retain `0xAB` handling for firmwares that do report it. Two regression tests added. |
+| 1 | **G-Mode inert** — see §6.1. | User report; `tools/gmode-test.py` | Activate profile `0xAB` as well as the flag. |
 | 2 | **`dell-pc` capability overstated.** A shared name map aliased `performance` → `g-mode`, making the fallback backend claim G-Mode it does not have. | Reviewing `mode` output | Per-backend `profile_map`; the alias now applies only to `alienware-wmi`. |
 | 3 | **`force_hwmon` would break module loading.** `modprobe` *refuses* a module given an unknown parameter, so shipping it in `modprobe.d` would stop `alienware_wmi` loading at all on kernel 6.14. | Reasoning about 6.14 vs 6.15 | `install.sh` greps `modinfo` and writes only supported parameters. |
 | 4 | **systemd sandbox blocked `modprobe`.** `SystemCallFilter=@system-service` excludes `@module` and the capability set omitted `CAP_SYS_MODULE`, so the daemon's fallback module load would fail with EPERM. | `systemd-analyze verify` review | Added `@module` and `CAP_SYS_MODULE`. |
 | 5 | **`install.sh` broken under `curl \| bash`.** `BASH_SOURCE[0]` is not a real path, so checkout detection and the uninstaller copy misbehaved. | Reviewing the pipe path | Explicit `SELF` detection; payload copy used when piped. |
 | 6 | `dict(PROFILE_IDS, **{int: str})` → `TypeError: keywords must be strings`. | First import | Dict literal unpacking. |
+| 7 | **TUI rendered as solid blocks.** The dashboard used U+2588/U+2591 for meters; many terminal fonts draw U+2591 (light shade) as a *full* cell, so filled and empty were identical and every bar became one rectangle. | User screenshot | Meters now use reverse-video spaces, which are font-independent; the trend line uses an ASCII ramp. CLI bars are plain ASCII. |
+| 8 | **Log records corrupted the TUI.** `logs.setup()` attached a stderr handler even for `monitor`, so each fan change wrote over the curses display and scrolled it. | User screenshot | `monitor` gets a `NullHandler` for the console (file/journal logging unaffected), plus `scrollok(False)` and `KEY_RESIZE` handling. |
+| 9 | **`keyprobe.py` false positive.** It counted *any* input event, so Alt+Tab and touchpad contact (`KEY_TAB`, `KEY_LEFTALT`, `BTN_TOUCH`) were reported as "the G key is visible to Linux". | Inspecting the reported key codes | Pointer devices skipped, modifiers/Tab/`BTN_*` filtered, `KEY_F10` required in the control step, and only codes unique to step 2 are reported. |
 
 ---
 
@@ -371,15 +437,21 @@ Artifacts retained in the repository: `probe-report.txt`,
    exist here, and is what makes the tool portable.
 4. **Verify through a second interface.** Writing via `WMAX` and reading via
    `dell_ddv` (Δ ≈ 53 RPM) is what turns "the call returned 0" into evidence.
-5. **G-Mode is an overlay, not a profile,** on BIOS 1.34.0 — the bug that only
-   real hardware exposed.
-6. **Manual fan control is genuinely proportional:** 1490 → 4716 RPM across
+5. **G-Mode is two writes, not one:** thermal profile `0xAB` via `0x15/0x01`
+   **and** the Game Shift flag via `0x25/0x01`. The flag alone is inert
+   (−19 RPM). `0xAB` is not in the firmware's enumerated profile table, so it
+   cannot be discovered — it must be requested explicitly.
+6. **Assert on physical effect, not on flag readback.** A stored flag is not a
+   working feature. Checking `0x25/0x02 == 1` let a completely non-functional
+   G-Mode pass as working, and "fixing" the resulting test failure by changing
+   the *detection* logic hid the bug rather than solving it (§6.1).
+7. **Manual fan control is genuinely proportional:** 1490 → 4716 RPM across
    boost 0 → 255, monotonic, at 98 % of rated maximum.
-7. **Kernel 6.14 already has `force_platform_profile`/`force_gmode`**, giving
+8. **Kernel 6.14 already has `force_platform_profile`/`force_gmode`**, giving
    profiles and G-Mode with no out-of-tree module. Upgrading to **6.17**
    (already in Ubuntu 25.10's repos) would add `force_hwmon` and make
    `acpi_call` unnecessary — the recommended next step.
-8. **Dual-boot safety is a shutdown-ordering problem,** not a persistence
+9. **Dual-boot safety is a shutdown-ordering problem,** not a persistence
    problem: EC state survives warm reboots, so it is explicitly cleared before
    power-off.
 

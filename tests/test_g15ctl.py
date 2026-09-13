@@ -189,8 +189,14 @@ class FakeWmax:
 
     RESOURCES = [0x32, 0x33, 0x101, 0x106, 0xA0, 0xA1, 0xA5, 0xA3]
 
-    #: Set True to emulate firmware that reports 0xAB as the current profile.
-    reports_gmode_as_profile = False
+    #: Measured idle CPU fan RPM per (profile, game-shift flag). These are the
+    #: real numbers from tools/gmode-test.py on BIOS 1.34.0 and encode the key
+    #: fact that the flag alone does nothing.
+    RPM_MODEL = {
+        (0xA0, 0): 1042, (0xA0, 1): 1024,
+        (0xAB, 0): 4373, (0xAB, 1): 4991,
+        (0xA1, 0): 2700,
+    }
 
     def __init__(self):
         self.path = r"\_SB.AMWW.WMAX"
@@ -198,6 +204,17 @@ class FakeWmax:
         self.gmode = 0
         self.boost = {0x32: 0, 0x33: 0}
         self.calls: list[tuple] = []
+
+    @property
+    def effective_rpm(self) -> int:
+        """Idle CPU fan RPM implied by the current state.
+
+        Lets tests assert on the physical effect rather than on a flag, which
+        is what a flag-only assertion failed to catch on real hardware.
+        """
+        if self.boost[0x32]:
+            return 1042 + round(self.boost[0x32] / 255 * (4800 - 1042))
+        return self.RPM_MODEL.get((self.profile, self.gmode), 1042)
 
     def call(self, method, op, a1=0, a2=0, a3=0):
         self.calls.append((method, op, a1, a2))
@@ -207,11 +224,15 @@ class FakeWmax:
                     return self.RESOURCES[a1]
                 return 0xFFFFFFFE
             if op == C.OP_GET_CURRENT_PROFILE:
-                if self.gmode and self.reports_gmode_as_profile:
-                    return C.PROFILE_GMODE
                 return self.profile
+            if op == C.OP_GET_BASE_PROFILE:
+                return 0xA0
             if op == C.OP_GET_RPM:
-                return {0x32: 1091, 0x33: 1240}.get(a1, 0xFFFFFFFF)
+                if a1 == 0x32:
+                    return self.effective_rpm
+                if a1 == 0x33:
+                    return self.effective_rpm + 150
+                return 0xFFFFFFFF
             if op == C.OP_GET_TEMP:
                 return {0x01: 65, 0x06: 53}.get(a1, 0xFFFFFFFF)
             if op == C.OP_GET_FAN_MAX_RPM:
@@ -221,7 +242,9 @@ class FakeWmax:
             return 0xFFFFFFFE
         if method == C.M_THERMAL_CONTROL:
             if op == C.OP_ACTIVATE_PROFILE:
-                self.profile, self.gmode = a1, 0
+                # Activating a profile does not clear the Game Shift flag on
+                # real hardware; the driver has to clear it explicitly.
+                self.profile = a1
                 return 0
             if op == C.OP_SET_FAN_BOOST:
                 if a1 not in self.boost:
@@ -274,19 +297,45 @@ class TestAwccBackend(unittest.TestCase):
         self.assertTrue(self.backend.get_gmode())
         self.assertEqual(self.backend.get_mode(), C.MODE_GMODE)
 
-    def test_gmode_detected_even_when_profile_does_not_report_it(self):
-        # Regression, caught by tools/verify.sh on real hardware: BIOS 1.34.0
-        # keeps reporting 0xA0 from 0x14/0x0B while Game Shift is on, so
-        # get_mode() must consult 0x25/0x02 rather than trusting the profile.
-        self.fw.reports_gmode_as_profile = False
+    def test_gmode_sets_both_profile_and_flag(self):
+        # THE regression test for this project's worst bug. Measured on real
+        # hardware: the Game Shift flag alone does nothing (1024 rpm vs a 1042
+        # rpm baseline); profile 0xAB is what drives the fans. Setting only
+        # the flag reported success while changing nothing at all.
         self.backend.set_gmode(True)
-        self.assertEqual(self.fw.profile, 0xA0)
-        self.assertEqual(self.backend.get_mode(), C.MODE_GMODE)
+        self.assertEqual(self.fw.profile, C.PROFILE_GMODE,
+                         "G-Mode must activate profile 0xAB, not just the flag")
+        self.assertEqual(self.fw.gmode, 1, "Game Shift flag must also be set")
 
-    def test_gmode_detected_when_firmware_reports_0xab(self):
-        # The other firmware behaviour must keep working too.
-        self.fw.reports_gmode_as_profile = True
+    def test_gmode_actually_raises_fan_speed(self):
+        # Assert on the physical effect, not on a flag readback.
+        before = self.fw.effective_rpm
         self.backend.set_gmode(True)
+        after = self.fw.effective_rpm
+        self.assertGreater(after, before + 1000,
+                           "G-Mode must measurably increase fan speed")
+
+    def test_flag_only_would_not_raise_fan_speed(self):
+        # Proves the model reproduces the real firmware quirk, so the test
+        # above is meaningful rather than tautological.
+        self.fw.call(C.M_GAME_SHIFT, C.OP_SET_GAME_SHIFT, 1)
+        self.assertLessEqual(self.fw.effective_rpm, 1042)
+
+    def test_leaving_gmode_restores_a_normal_profile(self):
+        # Clearing only the flag would leave 0xAB active and the fans pinned.
+        self.backend.set_gmode(True)
+        self.backend.set_gmode(False)
+        self.assertNotEqual(self.fw.profile, C.PROFILE_GMODE)
+        self.assertEqual(self.fw.profile, 0xA0)
+        self.assertEqual(self.fw.gmode, 0)
+        self.assertFalse(self.backend.get_gmode())
+        self.assertLess(self.fw.effective_rpm, 1500)
+
+    def test_gmode_detected_from_profile_even_if_flag_rejected(self):
+        # If 0x25 is refused but 0xAB took, we are still in G-Mode.
+        self.fw.profile = C.PROFILE_GMODE
+        self.fw.gmode = 0
+        self.assertTrue(self.backend.get_gmode())
         self.assertEqual(self.backend.get_mode(), C.MODE_GMODE)
 
     def test_selecting_profile_leaves_gmode(self):

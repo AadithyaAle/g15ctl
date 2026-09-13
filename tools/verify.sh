@@ -183,25 +183,59 @@ fi
 
 # ---------------------------------------------------------------------------
 hr "TEST 4: G-MODE"
-before=$(ddv_rpm)
+# This test MUST measure fan RPM, not just read the G-Mode flag back. An
+# earlier version checked only the flag and therefore passed while G-Mode was
+# doing nothing at all: on this firmware the Game Shift flag alone is inert
+# and the 0xAB thermal profile is what drives the fans.
+$G15 fan auto >/dev/null 2>&1
+$G15 mode balanced >/dev/null 2>&1
+echo "  settling to a clean idle baseline (20s)..."
+sleep 20
+read -r N1 N2 <<< "$(ddv_rpm)"
+echo "  balanced baseline:  ${N1}/${N2} rpm  cpu=$(ddv_temp)C"
+
 if $G15 gmode on >/dev/null 2>&1; then
-    sleep 7
+    sleep 15
     st=$($G15 gmode status | grep -o 'ON\|off' | head -1)
     read -r G1 G2 <<< "$(ddv_rpm)"
-    echo "  gmode on:  status=$st fans=${G1}/${G2} rpm  (was: $before)"
-    if [[ "$st" == "ON" ]]; then
-        ok "G-Mode reports ON"
-    else
-        bad "G-Mode did not report ON"
-    fi
+    echo "  gmode on:           ${G1}/${G2} rpm  status=$st  cpu=$(ddv_temp)C"
+
+    [[ "$st" == "ON" ]] && ok "G-Mode reports ON" || bad "G-Mode did not report ON"
+
     mode_now=$($G15 status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["mode"])')
-    [[ "$mode_now" == "g-mode" ]] && ok "current profile reads back as g-mode (0xAB)" \
-        || bad "profile reads '$mode_now', expected g-mode"
+    [[ "$mode_now" == "g-mode" ]] && ok "mode reads back as g-mode" \
+        || bad "mode reads '$mode_now', expected g-mode"
+
+    # The firmware profile itself must be 0xAB, not merely the flag.
+    prof=$(python3 - <<'PY'
+import os, sys
+sys.path.insert(0, os.getcwd())
+from g15ctl import constants as C
+from g15ctl.acpi import Wmax
+print("%#x" % (Wmax.detect().query(C.M_THERMAL_INFO, C.OP_GET_CURRENT_PROFILE) or 0))
+PY
+)
+    [[ "$prof" == "0xab" ]] && ok "firmware profile is 0xab (the G-Mode profile)" \
+        || bad "firmware profile is $prof, expected 0xab -- G-Mode is not really engaged"
+
+    # The decisive check: did the fans actually speed up?
+    if [[ "$G1" -gt $((N1 + 1000)) ]]; then
+        ok "G-Mode raised CPU fan by $((G1 - N1)) rpm (${N1} -> ${G1})"
+    else
+        bad "G-Mode barely changed fan speed (${N1} -> ${G1}); it is not working"
+    fi
 
     $G15 gmode off >/dev/null 2>&1
-    sleep 5
+    sleep 15
     st=$($G15 gmode status | grep -o 'ON\|off' | head -1)
+    read -r O1 O2 <<< "$(ddv_rpm)"
+    echo "  gmode off:          ${O1}/${O2} rpm  status=$st"
     [[ "$st" == "off" ]] && ok "G-Mode turned off" || bad "G-Mode stuck on"
+    if [[ "$O1" -lt "$G1" ]]; then
+        ok "fans came back down after leaving G-Mode (${G1} -> ${O1})"
+    else
+        bad "fans still pinned after leaving G-Mode (${O1}); profile may still be 0xab"
+    fi
 else
     bad "could not toggle G-Mode"
 fi

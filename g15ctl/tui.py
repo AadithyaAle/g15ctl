@@ -43,11 +43,36 @@ class Dashboard:
             return curses.color_pair(4)
         return curses.color_pair(1)
 
-    def _bar(self, percent: float | None, width: int) -> str:
+    def _meter(self, stdscr, row: int, col: int, width: int,
+               percent: float | None, attr: int = 0) -> int:
+        """Draw a bracketed meter using reverse video rather than glyphs.
+
+        Shade characters like U+2591 are unreliable: many terminal fonts render
+        them as a full cell, making the filled and empty halves of a bar
+        indistinguishable (the bar becomes one solid block). Reverse-video
+        spaces always render correctly regardless of font.
+
+        Returns the column just past the meter.
+        """
+        try:
+            stdscr.addch(row, col, "[")
+            stdscr.addch(row, col + width + 1, "]")
+        except curses.error:
+            pass
         if percent is None:
-            return " " * width
+            return col + width + 2
         filled = int(round(max(0.0, min(100.0, percent)) / 100.0 * width))
-        return "\u2588" * filled + "\u2591" * (width - filled)
+        for i in range(width):
+            try:
+                stdscr.addch(row, col + 1 + i, " ",
+                             (attr | curses.A_REVERSE) if i < filled else attr)
+            except curses.error:
+                pass
+        return col + width + 2
+
+    #: ASCII ramp for the trend line. Block glyphs (U+2581..U+2588) hit the
+    #: same font problem as the shade characters above.
+    _RAMP = " .:-=+*#"
 
     def draw(self, stdscr, data: dict) -> None:
         stdscr.erase()
@@ -74,17 +99,25 @@ class Dashboard:
 
         # Fans
         put("FANS  (control: %s)" % data.get("fan_control"), curses.A_BOLD)
-        meter = max(10, min(30, width - 40))
         for fan in data.get("fans", []):
             percent = fan.get("percent")
-            line = "  %-4s %5d rpm  %s %s" % (
-                fan.get("label", "?"), fan.get("rpm", 0),
-                self._bar(percent, meter),
-                "%3d%%" % percent if percent is not None else " n/a",
-            )
+            prefix = "  %-4s %5d rpm  " % (fan.get("label", "?"), fan.get("rpm", 0))
+            meter = max(8, min(28, width - len(prefix) - 16))
+            if row >= height - 1:
+                break
+            try:
+                stdscr.addnstr(row, 0, prefix, max(0, width - 1))
+            except curses.error:
+                pass
+            end = self._meter(stdscr, row, len(prefix), meter, percent)
+            suffix = " %3d%%" % percent if percent is not None else "  n/a"
             if fan.get("boost_percent"):
-                line += "  boost %d%%" % fan["boost_percent"]
-            put(line)
+                suffix += " boost %d%%" % fan["boost_percent"]
+            try:
+                stdscr.addnstr(row, end, suffix, max(0, width - end - 1))
+            except curses.error:
+                pass
+            row += 1
         put("")
 
         # Temperatures
@@ -94,15 +127,25 @@ class Dashboard:
         ordered = [k for k in priority if k in temps]
         ordered += [k for k in sorted(temps) if k not in ordered]
         for key in ordered:
+            if row >= height - 1:
+                break
             value = temps[key]
-            put("  %-13s %5.1f C  %s" % (key, value, self._bar(min(value, 100), meter)),
-                self._colour(value))
+            colour = self._colour(value)
+            prefix = "  %-13s %5.1f C  " % (key, value)
+            meter = max(8, min(28, width - len(prefix) - 4))
+            try:
+                stdscr.addnstr(row, 0, prefix, max(0, width - 1), colour)
+            except curses.error:
+                pass
+            # Scale against 100 C so the bars are comparable to each other.
+            self._meter(stdscr, row, len(prefix), meter, min(value, 100.0), colour)
+            row += 1
         put("")
 
-        # Sparkline of the hottest sensor, so a trend is visible at a glance.
-        if self.history:
+        # Trend of the hottest sensor, so a direction is visible at a glance.
+        if len(self.history) > 1:
             put("HOTTEST SENSOR TREND", curses.A_BOLD)
-            put("  " + self._sparkline(width - 6))
+            put("  " + self._sparkline(max(10, width - 22)))
             put("")
 
         battery = data.get("battery", {})
@@ -144,13 +187,13 @@ class Dashboard:
         stdscr.refresh()
 
     def _sparkline(self, width: int) -> str:
-        glyphs = "\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588"
         data = self.history[-width:]
         if not data:
             return ""
         low, high = min(data), max(data)
         span = max(1.0, high - low)
-        out = [glyphs[min(len(glyphs) - 1, int((v - low) / span * (len(glyphs) - 1)))]
+        ramp = self._RAMP
+        out = [ramp[min(len(ramp) - 1, int((v - low) / span * (len(ramp) - 1)))]
                for v in data]
         return "%s  %.0f-%.0f C" % ("".join(out), low, high)
 

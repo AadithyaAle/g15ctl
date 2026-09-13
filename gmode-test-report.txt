@@ -1,0 +1,58 @@
+======================================================================
+G-MODE EFFECT TEST -- Dell G15
+Keep the machine IDLE and do not run anything heavy during this.
+Total runtime about 2.5 minutes.
+======================================================================
+WMAX path: \_SB.AMWW.WMAX
+baseline: profile=0xa0 game_shift=1
+
+--- A: profile 0xA0 (balanced), game_shift=0   [BASELINE]
+    profile=0xa0 game_shift=0  boost=0/0
+    settling 24s: ........................
+    RESULT  cpu=1042 rpm  gpu=1217 rpm  (cpu temp 64 C)
+
+    setting game_shift=1 -> accepted
+
+--- B: profile 0xA0, game_shift=1   [what g15ctl does now]
+    profile=0xa0 game_shift=1  boost=0/0
+    settling 24s: ........................
+    RESULT  cpu=1024 rpm  gpu=1192 rpm  (cpu temp 64 C)
+
+    setting game_shift=0 -> accepted
+    setting profile 0xAB -> accepted
+
+--- C: profile 0xAB, game_shift=0   [profile only]
+    profile=0xab game_shift=1  boost=100/100
+    settling 24s: ........................
+    RESULT  cpu=4373 rpm  gpu=4386 rpm  (cpu temp 62 C)
+
+    setting game_shift=1 -> accepted
+    re-asserting profile 0xAB -> accepted
+
+--- D: profile 0xAB, game_shift=1   [prior-art behaviour]
+    profile=0xab game_shift=1  boost=100/100
+    settling 24s: ........................
+    RESULT  cpu=4991 rpm  gpu=5000 rpm  (cpu temp 58 C)
+
+    setting profile 0xA1 -> accepted
+
+--- E: profile 0xA1 (balanced-performance)   [reference]
+    profile=0xa1 game_shift=0  boost=0/0
+    settling 24s: ........................
+    RESULT  cpu=2700 rpm  gpu=2928 rpm  (cpu temp 56 C)
+
+=== restoring baseline ===
+    profile=0xa0 game_shift=0  boost=0/0
+
+======================================================================
+SUMMARY (idle fan RPM, cpu/gpu)
+======================================================================
+  A balanced, gs=0           cpu=  1042 gpu=  1217   delta vs baseline     +0
+  B balanced, gs=1           cpu=  1024 gpu=  1192   delta vs baseline    -19
+  C 0xAB, gs=0               cpu=  4373 gpu=  4386   delta vs baseline  +3330
+  D 0xAB, gs=1               cpu=  4991 gpu=  5000   delta vs baseline  +3949
+  E 0xA1 balanced-perf       cpu=  2700 gpu=  2928   delta vs baseline  +1657
+
+INTERPRETATION
+  -> G-Mode REQUIRES profile 0xAB. The 0x25 flag alone does
+     nothing. g15ctl must issue 0x15/0x01 with 0xAB as well.

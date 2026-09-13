@@ -44,16 +44,17 @@ def temp_colour(value: float) -> str:
 
 
 def bar(percent: float | None, width: int = 22) -> str:
-    """A unicode meter. Falls back to ASCII when the locale cannot encode it."""
+    """A plain ASCII meter.
+
+    Deliberately not using block/shade glyphs: many terminal fonts render
+    U+2591 (light shade) as a full cell, which makes the filled and empty
+    parts of the bar identical and turns it into one solid rectangle. ASCII
+    renders correctly everywhere.
+    """
     if percent is None:
         return dim("  n/a".ljust(width + 2))
     filled = int(round(max(0.0, min(100.0, percent)) / 100.0 * width))
-    glyphs = ("\u2588", "\u2591")
-    try:
-        "".join(glyphs).encode(sys.stdout.encoding or "utf-8")
-    except (UnicodeEncodeError, LookupError):
-        glyphs = ("#", "-")
-    return "[%s%s]" % (glyphs[0] * filled, glyphs[1] * (width - filled))
+    return "[%s%s]" % ("#" * filled, " " * (width - filled))
 
 
 def die(message: str, code: int = 1) -> None:

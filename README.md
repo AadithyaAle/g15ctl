@@ -73,13 +73,37 @@ The 5530's firmware reports four profiles, plus G-Mode:
 | `quiet` | `0xA3` | prioritises silence |
 | `balanced` | `0xA0` | firmware default |
 | `balanced-performance` | `0xA1` | AWCC's "Performance" |
-| `g-mode` | `0xAB` | maximum fans and power, via method `0x25` |
+| `g-mode` | `0xAB` | maximum fans and power |
 
 `cool` (`0xA2`) and `performance` (`0xA4`) exist in the AWCC profile table but
 are **not implemented on this model**, so `g15ctl` does not offer them. Run
 `g15ctl mode` to see what your own firmware reports.
 
 Aliases are accepted: `perf`, `silent`, `turbo`, `powersave`, `b`, `q`, `g`.
+
+#### G-Mode needs two writes
+
+Worth knowing if you are reading the code or porting it: G-Mode is **not** just
+the "Game Shift" flag. Measured idle CPU fan RPM on a 5530:
+
+| Profile | Game Shift flag | CPU fan |
+|---|:-:|---|
+| `0xA0` | 0 | 1042 (baseline) |
+| `0xA0` | 1 | 1024 — **the flag alone does nothing** |
+| `0xAB` | 0 | 4373 |
+| `0xAB` | 1 | **4991** — true G-Mode |
+
+So `g15ctl` issues `0x15/0x01 → 0xAB` *and* `0x25/0x01 → 1`. Note `0xAB` is
+absent from the firmware's enumerated profile list yet is accepted anyway, so
+it cannot be discovered by enumeration.
+
+G-Mode also reaches ~4991 RPM, above the 4800 RPM the firmware reports as
+maximum — that figure is nominal, not a ceiling.
+
+> The `awcc-native` backend delegates G-Mode to the kernel driver, which on
+> kernels before 6.15 may only set the flag and therefore may be similarly
+> ineffective. Prefer `awcc-acpi` (the default when running as root) for
+> G-Mode. `g15ctl doctor` shows which backend is active.
 
 ### Fan boost semantics
 
