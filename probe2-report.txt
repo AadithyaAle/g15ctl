@@ -1,0 +1,177 @@
+
+===== DUMP ALL ACPI TABLES =====
+tables dumped: 43
+  ./apic.dat           476 bytes
+  ./bgrt.dat           56 bytes
+  ./boot.dat           40 bytes
+  ./dbg2.dat           84 bytes
+  ./dbgp.dat           52 bytes
+  ./dmar.dat           136 bytes
+  ./dsdt.dat           653360 bytes
+  ./facp.dat           276 bytes
+  ./facs.dat           64 bytes
+  ./fpdt.dat           52 bytes
+  ./hpet.dat           56 bytes
+  ./lpit.dat           204 bytes
+  ./mcfg.dat           60 bytes
+  ./msdm.dat           85 bytes
+  ./nhlt.dat           7010 bytes
+  ./phat.dat           1286 bytes
+  ./ssdt1.dat          908 bytes
+  ./ssdt10.dat         1550 bytes
+  ./ssdt11.dat         41660 bytes
+  ./ssdt12.dat         3480 bytes
+  ./ssdt13.dat         14810 bytes
+  ./ssdt14.dat         14810 bytes
+  ./ssdt15.dat         324 bytes
+  ./ssdt16.dat         1344 bytes
+  ./ssdt17.dat         1475 bytes
+  ./ssdt18.dat         427 bytes
+  ./ssdt19.dat         1231 bytes
+  ./ssdt2.dat          8127 bytes
+  ./ssdt20.dat         7087 bytes
+  ./ssdt21.dat         4152 bytes
+  ./ssdt22.dat         4937 bytes
+  ./ssdt23.dat         4027 bytes
+  ./ssdt3.dat          23637 bytes
+  ./ssdt4.dat          26061 bytes
+  ./ssdt5.dat          5879 bytes
+  ./ssdt6.dat          4777 bytes
+  ./ssdt7.dat          4288 bytes
+  ./ssdt8.dat          2884 bytes
+  ./ssdt9.dat          37863 bytes
+  ./tpm2.dat           76 bytes
+  ./uefi1.dat          1594 bytes
+  ./uefi2.dat          92 bytes
+  ./wsmt.dat           40 bytes
+
+===== DECOMPILE AND HUNT FOR WMAX =====
+  *** WMAX method found in: ./ssdt2.dsl
+
+===== WMAX METHOD BODY =====
+--- from ./ssdt2.dsl ---
+78:         Device (AMWW)
+82:             Name (_WDG, Buffer (0x28)
+867:             Method (WMAX, 3, Serialized)
+
+WMAX body: 273 lines -> /tmp/g15ctl-probe2/wmax-method.txt
+
+-- the method-ID switch cases (these are the authoritative IDs) --
+              Method (WMAX, 3, Serialized)
+                  If ((Arg1 == 0x1A))
+                  If ((Arg1 == 0x20))
+                  If ((Arg1 == 0x21))
+                  If ((Arg1 == 0x22))
+                  If ((Arg1 == 0x13))
+                  If ((Arg1 == 0x14))
+                  If ((Arg1 == 0x15))
+                  If ((Arg1 == 0x25))
+                  If ((Arg1 == 0x17))
+                  If ((Arg1 == 0x0D))
+                  If ((Arg1 == 0x0E))
+                  If ((Arg1 == 0x0F))
+                  If ((Arg1 == 0x1B))
+                  If ((Arg1 == 0x1E))
+                  If ((Arg1 == 0x31))
+                  If ((Arg1 == 0x23))
+                  If ((Arg1 == 0x24))
+                  If ((Arg1 == 0x80))
+
+-- first 60 lines --
+            Method (WMAX, 3, Serialized)
+            {
+                CreateByteField (Arg2, Zero, BFB0)
+                CreateByteField (Arg2, One, BFB1)
+                CreateByteField (Arg2, 0x02, BFB2)
+                If ((Arg1 == 0x1A))
+                {
+                    If ((BFB0 == One))
+                    {
+                        Local0 = AX01 (BFB1)
+                    }
+                    ElseIf ((BFB0 == 0x02))
+                    {
+                        Local0 = AX02 (BFB1, BFB2)
+                    }
+                    ElseIf ((BFB0 == 0x03))
+                    {
+                        Local0 = AX03 (BFB1, BFB2)
+                    }
+                    Else
+                    {
+                        Local0 = 0xFFFFFFFF
+                    }
+
+                    Return (Local0)
+                }
+
+                If ((Arg1 == 0x20))
+                {
+                    If ((BFB1 == Zero))
+                    {
+                        Local0 = Zero
+                    }
+                    Else
+                    {
+                        Local0 = One
+                    }
+
+                    If ((BFB0 == Zero))
+                    {
+                        AX04 (0x080B0011, Local0)
+                        Return (Zero)
+                    }
+
+                    If ((BFB0 == One))
+                    {
+                        AX04 (0x080B0010, Local0)
+                        Return (Zero)
+                    }
+
+                    Return (0xFFFFFFFF)
+                }
+
+                If ((Arg1 == 0x21))
+                {
+                    Return (0x02)
+                }
+
+                If ((Arg1 == 0x22))
+                {
+
+===== FULL ACPI NAMESPACE PATH OF THE AWCC DEVICE =====
+  PNP0C14:03 -> \_SB_.AMW0
+  PNP0C14:04 -> \_SB_.AMW2
+  PNP0C14:05 -> \_SB_.AMW5
+  PNP0C14:06 -> \_SB_.AMW4
+  PNP0C14:08 -> \_SB_.AMWV
+  PNP0C14:0b -> \_SB_.AMWW
+-- grep decompiled tables for the enclosing Scope/Device of WMAX --
+  ACPI PATH -> \_SB.AMWW.WMAX
+  enclosing scopes: ['\\_SB', 'AMWW']
+
+===== TEST: NATIVE alienware-wmi WITH FORCE PARAMETERS =====
+before: platform-profile devices =
+  platform-profile-0 name=dell-pc choices=[cool quiet balanced performance]
+before: hwmon alienware = none
+unloaded alienware_wmi
+loading: modprobe alienware_wmi force_platform_profile=1 force_gmode=1
+  load OK
+
+after: platform-profile devices =
+  platform-profile-0 name=dell-pc choices=[cool quiet balanced performance] current=balanced
+  platform-profile-1 name=alienware-wmi choices=[low-power quiet balanced balanced-performance performance] current=balanced
+
+after: AWCC hwmon device =
+  none (expected on kernel 6.14: no force_hwmon support)
+
+after: WMAX wmi device binding =
+  still unbound
+
+-- kernel messages from the load attempt --
+[21592.281245] Setting dangerous option force_platform_profile - tainting kernel
+
+===== DONE =====
+Artifacts: /tmp/g15ctl-probe2
+  tables/          - all ACPI tables, raw + decompiled
+  wmax-method.txt  - the WMAX method body

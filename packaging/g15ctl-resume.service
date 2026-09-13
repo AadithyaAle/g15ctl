@@ -1,0 +1,14 @@
+[Unit]
+Description=g15ctl: reapply thermal mode after resume
+Documentation=man:g15ctl(1)
+# EC thermal state is not guaranteed to survive a suspend/resume cycle, and in
+# practice the firmware often reverts to its default profile. Reapplying keeps
+# the mode you chose actually in effect.
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/g15ctl restore
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

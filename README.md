@@ -1,90 +1,223 @@
+# g15ctl
 
+Alienware Command Center style fan and thermal control for Dell G-series
+laptops on Linux.
 
-# Dell G15 Fan CLI
+Developed and verified on a **Dell G15 5530 (BIOS 1.34.0, Ubuntu 25.10,
+kernel 6.14)** by decompiling the machine's own ACPI tables, rather than
+copying method IDs from other models — which is why it works where the
+commonly circulated scripts silently do nothing.
 
-A command-line tool and optional GUI to adjust fan speed on Dell G15 series of laptops.
+```
+Thermal mode:  BALANCED   backend awcc-acpi
+Power:         AC | governor powersave | 2128 MHz avg
 
-This tool lets you modify the fan status on Dell G15 series of laptops using ACPI commands. G-Mode is a toggle between Game Shift and Balanced mode, as documented in the ArchWiki.
+Fans  (control: auto)
+  CPU    1245 rpm  [██████░░░░░░░░░░░░░░░░]  26%  of 4800
+  GPU    1467 rpm  [███████░░░░░░░░░░░░░░░]  31%  of 4800
 
+Temperatures
+  CPU          65 C   CPU Package  80 C   GPU          53 C
+  Charger      51 C   NVMe 1       53 C   NVMe 2       34 C
+  SODIMM       53 C   SODIMM 2     53 C   Wi-Fi        60 C
+  hottest: CPU Package at 80 C
 
-## Tested Models
-|  Model             |  Status            |
-|--------------------|--------------------|
-|  G15-5535 (AMD)    |  Works-Tested      |
-|  G15-5530 (Intel)  |  Works-Tested      |
-|  G15-5525 (AMD)    |  Works-Archwiki    |
-|  G15-5520 (Intel)  |  Works-Archwiki    |
-|  G15-5511 (Intel)  |  Works-Tested      |
-
-**Note for Intel Users:**  
-If you encounter issues, you may need to edit `g15-fan-cli.py` with a text editor and replace all instances of `AMW3` with `AMWW`.
-
-## Features
-
-- **Command-Line Interface**: Control fan modes directly from your terminal.
-- **Optional GUI Dashboard**: A graphical interface to monitor system stats (CPU Temp, RAM, Fan RPM, Battery Health) and control fan modes with a single click.
-
-## Requirements
-
-### For Both CLI and GUI
-- `acpi_call` or `acpi_call-dkms` kernel module
-- Python 3
-- `python3-pexpect`
-- `pkexec` for root privileges (can be replaced with `sudo` if running from a terminal)
-- bash shell
-
-### Additional for GUI
-- `python3-pyqt6`
-- `python3-psutil`
-
-## Installation of Dependencies
-
-**On Debian/Ubuntu and derivatives:**
-```bash
-sudo apt update
-sudo apt install acpi-call-dkms python3-pexpect python3-pyqt6 python3-psutil
+Battery: 75%  Charging  health 82%  281 cycles
 ```
 
-**On Arch Linux and derivatives:**
+## Install
+
 ```bash
-sudo pacman -Syu acpi_call python-pexpect python-pyqt6 python-psutil
+curl -fsSL https://github.com/AadithyaAle/g15ctl/releases/latest/download/install.sh | sudo bash
 ```
+
+Or from a checkout:
+
+```bash
+sudo ./install.sh
+```
+
+Uninstall with `sudo g15ctl-uninstall`.
 
 ## Usage
 
-### 1. Command-Line Interface (CLI)
-1. Clone this repository or download the `g15-fan-cli.py` file.
-2. Move it to `~/.local/bin` or another directory in your `PATH`.
-3. Make it executable: `chmod +x ~/.local/bin/g15-fan-cli.py`
-4. Run the following command:
-   ```bash
-   g15-fan-cli.py <mode>
-   ```
-   Replace `<mode>` with one of the following options:
-   - `b`: Balanced mode
-   - `p`: Performance mode
-   - `q`: Quiet mode
-   - `g`: G-Mode (toggles between Game Shift and Balanced)
-   - `h`: Help menu
+Monitoring works as a normal user. Changing anything needs `sudo`.
 
-### 2. Graphical User Interface (GUI)
-1. Ensure all dependencies (CLI and GUI) are installed.
-2. Place both `g15-fan-cli.py` and `g15-gui.py` in the same directory (e.g., `~/.local/bin`).
-3. Make the GUI script executable: `chmod +x ~/.local/bin/g15-gui.py`
-4. Launch the GUI by running:
-   ```bash
-   g15-gui.py
-   ```
+```bash
+g15ctl status              # temperatures, fans, mode, battery health
+g15ctl monitor             # live dashboard with a temperature sparkline
+g15ctl status --json       # machine-readable, for scripts and bars
 
-### Keybinding (Example for Ubuntu/GNOME)
-You can bind the GUI or a CLI command to a keyboard shortcut for quick access.
+sudo g15ctl mode quiet     # switch thermal profile
+sudo g15ctl mode           # list what your firmware supports
+sudo g15ctl fan 70         # pin fans to at least 70%
+sudo g15ctl fan auto       # hand the fans back to the firmware
+sudo g15ctl gmode toggle   # G-Mode (Game Shift)
+sudo g15ctl reset          # full handback to firmware
 
-1. Go to `Settings -> Keyboard -> View and Customize Shortcuts -> Custom Shortcuts`.
-2. Click `Add Shortcut`.
-3. Name: `Dell G15 Control`
-4. Command: `/home/your-username/.local/bin/g15-gui.py` (to launch the GUI) OR `/home/your-username/.local/bin/g15-fan-cli.py g` (to toggle G-Mode).
-5. Shortcut: Set your desired key combination (e.g., `F9` or `Super+F`).
+g15ctl doctor              # diagnose hardware, backends and conflicts
+g15ctl logs -f             # follow service logs
+man g15ctl                 # full documentation
+```
 
-## References
-- The Game Shift ACPI commands were taken from the [ArchWiki page for Dell G15 5525](https://wiki.archlinux.org/title/Dell_G15_5525).
-- The rest of the ACPI commands were extracted from the [Dell-G15-Controller GitHub repository](https://github.com/...).
+A tray applet is installed as `g15ctl-gui` ("G15 Fan Control" in your
+launcher).
+
+### Thermal modes
+
+The 5530's firmware reports four profiles, plus G-Mode:
+
+| Mode | Firmware ID | Notes |
+|---|---|---|
+| `low-power` | `0xA5` | lowest power and noise |
+| `quiet` | `0xA3` | prioritises silence |
+| `balanced` | `0xA0` | firmware default |
+| `balanced-performance` | `0xA1` | AWCC's "Performance" |
+| `g-mode` | `0xAB` | maximum fans and power, via method `0x25` |
+
+`cool` (`0xA2`) and `performance` (`0xA4`) exist in the AWCC profile table but
+are **not implemented on this model**, so `g15ctl` does not offer them. Run
+`g15ctl mode` to see what your own firmware reports.
+
+Aliases are accepted: `perf`, `silent`, `turbo`, `powersave`, `b`, `q`, `g`.
+
+### Fan boost semantics
+
+The firmware does not take an absolute PWM. It takes a *boost* byte (0–255)
+that raises the floor of its own fan curve:
+
+```
+pwm ≈ pwm_base + (boost / 255) × (pwm_max − pwm_base)
+```
+
+So `g15ctl fan 50` means "at least about half speed" — the firmware will still
+spin faster if it wants to. A boost can therefore never make the machine run
+hotter than leaving it on automatic.
+
+### Automatic fan curve
+
+Off by default. The background service applies it when enabled:
+
+```bash
+sudo g15ctl curve set 50:0 65:25 75:50 85:100
+sudo g15ctl curve enable
+sudo systemctl restart g15ctl
+g15ctl curve show
+```
+
+Points are `TEMP:PERCENT`, linearly interpolated, with a hysteresis band so the
+fan does not oscillate on a boundary.
+
+## Dual boot with Windows
+
+Fan boost and G-Mode live in **volatile EC state**, but "volatile" means lost
+on power removal, not on a warm reboot. `g15ctl` therefore clears them before
+shutdown via `g15ctl-reset.service`, so rebooting into Windows always hands
+Alienware Command Center the firmware default.
+
+Nothing is ever written to BIOS NVRAM, and no `dell_wmi_sysman` firmware
+attributes are touched. Everything is runtime EC state that a power cycle
+clears anyway.
+
+## Safety
+
+- A watchdog monitors the hottest relevant sensor. Above **88 °C** it forces
+  fans to maximum regardless of what you asked for; above **95 °C** it releases
+  control to the firmware entirely, on the grounds that the firmware's curve is
+  thermally validated and a user-space one is not.
+- The daemon releases fan control if any ACPI call fails, rather than holding a
+  speed it cannot verify.
+- A fan boost only ever raises the floor of the firmware curve, so the
+  firmware's own thermal protection always remains in effect.
+- The tool refuses profiles the firmware did not report as supported, instead
+  of sending arbitrary bytes to the EC.
+
+## How it works
+
+Three backends, detected automatically, most capable first:
+
+| Backend | Profiles | G-Mode | Manual fan | Requires |
+|---|:-:|:-:|:-:|---|
+| `awcc-acpi` | yes | yes | **yes** | `acpi_call` + root |
+| `awcc-native` | yes | yes | kernel ≥ 6.15 | in-tree `alienware-wmi` |
+| `dell-pc` | yes | no | no | always present |
+
+`awcc-acpi` calls the firmware's `WMAX` ACPI method directly:
+
+```
+\_SB.AMWW.WMAX(0, method_id, buffer{op, arg1, arg2, arg3})
+```
+
+| Method | Op | Purpose |
+|---|---|---|
+| `0x14` | `0x02`/`0x03` | system description / enumerate resource IDs |
+| `0x14` | `0x04`/`0x05` | read temperature / fan RPM |
+| `0x14` | `0x08`/`0x09` | fan min / max RPM |
+| `0x14` | `0x0B`/`0x0C` | current profile / current fan boost |
+| `0x15` | `0x01`/`0x02` | **set profile / set per-fan boost** |
+| `0x25` | `0x01`/`0x02` | **set / get G-Mode** |
+
+Fan and sensor IDs are *enumerated from the firmware at runtime* (`0x14`/`0x03`)
+rather than hardcoded, so the tool adapts to other G-series models. On the
+5530 this yields fans `0x32` (CPU) and `0x33` (GPU), both 4800 RPM max, and
+sensors `0x01` (CPU) and `0x06` (GPU).
+
+Sensor *reading* uses `dell_wmi_ddv` hwmon, which needs no privileges — that is
+why the dashboard runs as a normal user.
+
+### Why not `\_SB.AMW3.WMAX`?
+
+Most Dell G15 guides and scripts hardcode `\_SB.AMW3.WMAX` or
+`\_SB.AMWW.WMAX` in the DSDT. On the 5530 the AWCC device is `\_SB.AMWW`,
+declared in **SSDT2, not the DSDT**. Calling the wrong path returns
+`AE_NOT_FOUND` and the script appears to work while doing nothing at all.
+
+`tools/probe2.sh` finds the correct path on any machine by dumping every ACPI
+table and locating the `WMAX` method.
+
+## Requirements
+
+- Dell G-series laptop with the AWCC WMI device
+  (`A70591CE-A997-11DA-B012-B622A1EF5492`)
+- Python 3.9+ (standard library only)
+- `acpi-call-dkms` for manual fan control
+- Secure Boot disabled, or the DKMS module enrolled via MOK
+- Tray applet: `python3-gi`, `gir1.2-gtk-3.0`,
+  `gir1.2-ayatanaappindicator3-0.1` (preinstalled on stock Ubuntu desktop)
+
+## Development
+
+```bash
+python3 tests/test_g15ctl.py        # 61 unit tests, no hardware needed
+sudo bash tools/verify.sh           # end-to-end hardware verification
+sudo bash tools/probe2.sh           # find the WMAX path on a new model
+sudo python3 tools/probe3.py        # enumerate the AWCC resource tables
+```
+
+`log.md` documents the full investigation and measured results.
+
+## Porting to another G-series model
+
+1. `sudo bash tools/probe2.sh` — finds your `WMAX` ACPI path.
+2. `sudo python3 tools/probe3.py` — lists your fan IDs, sensor IDs and
+   supported profiles.
+3. If the path differs, add it to `WMAX_PATH_CANDIDATES` in
+   `g15ctl/constants.py`. Everything else is discovered at runtime.
+
+Consider also submitting your model to the kernel's `awcc_dmi_table` in
+`drivers/platform/x86/dell/alienware-wmi-wmax.c` so the in-tree driver works
+without forced module parameters.
+
+## Credits
+
+The AWCC interface is documented by Kurt Borja's kernel driver
+(`Documentation/admin-guide/laptops/alienware-wmi.rst`), which is the reference
+for the method/operation numbering and the fan boost formula used here.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Not affiliated with or endorsed by Dell Technologies or Alienware. This is an
+independent implementation written against the machine's own ACPI tables and
+the public kernel documentation.

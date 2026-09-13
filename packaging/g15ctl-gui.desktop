@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=G15 Fan Control
+GenericName=Fan and Thermal Control
+Comment=Monitor temperatures and control fan modes on Dell G-series laptops
+Exec=g15ctl-gui
+Icon=sensors-temperature-symbolic
+Terminal=false
+Categories=System;Monitor;HardwareSettings;
+Keywords=fan;thermal;temperature;cooling;gmode;awcc;dell;g15;
+StartupNotify=false
+X-GNOME-UsesNotifications=true

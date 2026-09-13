@@ -1,0 +1,185 @@
+.TH G15CTL 1 "2026" "g15ctl 1.0.0" "User Commands"
+.SH NAME
+g15ctl \- fan and thermal control for Dell G\-series laptops
+.SH SYNOPSIS
+.B g15ctl
+.RI [ options ]
+.IR command " [" args ]
+.SH DESCRIPTION
+.B g15ctl
+controls fan speed, thermal profiles and G\-Mode on Dell G\-series laptops by
+driving the same AWCC firmware interface that Alienware Command Center uses on
+Windows.
+.PP
+Reading sensors works as an unprivileged user. Changing thermal state requires
+root.
+.SH COMMANDS
+.TP
+.B status
+Show thermal mode, fan speeds, temperatures and battery health. Accepts
+.BR \-\-json .
+.TP
+.B monitor
+Live terminal dashboard with a temperature trend sparkline. Press
+.B q
+to quit; number keys switch mode when run as root.
+.TP
+.BI mode " [name]"
+Print the current mode, or set it. With no argument, lists what the firmware
+supports. Typical names are
+.BR quiet ,
+.BR balanced ,
+.BR balanced\-performance ,
+.B low\-power
+and
+.BR g\-mode .
+Aliases such as
+.BR perf ,
+.B silent
+and
+.B turbo
+are accepted.
+.TP
+.BI fan " [percent|auto]"
+Set a manual fan boost from 0 to 100, or
+.B auto
+to hand the fans back to the firmware. See
+.B FAN BOOST SEMANTICS
+below.
+.TP
+.BI gmode " [on|off|toggle|status]"
+Control G\-Mode, the maximum\-performance mode bound to the keyboard's G key on
+Windows.
+.TP
+.BI curve " [show|set|enable|disable]"
+Inspect or edit the automatic fan curve. Points are given as
+.IR TEMP : PERCENT
+pairs, for example
+.RB ` "g15ctl curve set 50:0 70:35 85:100" '.
+The curve is applied by the background service.
+.TP
+.B reset
+Return all thermal control to the firmware: clears fan boost, disables G\-Mode
+and selects the default profile.
+.TP
+.B restore
+Reapply the last saved mode. Used by the boot and resume units.
+.TP
+.B doctor
+Diagnose hardware support, list available backends and warn about other
+daemons that might contend for thermal control.
+.TP
+.B logs
+Show service logs from the journal and
+.IR /var/log/g15ctl/g15ctl.log .
+Accepts
+.B \-n
+and
+.BR \-f .
+.TP
+.B daemon
+Run the background service. Normally started via systemd, not by hand.
+.SH OPTIONS
+.TP
+.BI \-\-backend " name"
+Force a backend:
+.BR awcc\-acpi ,
+.B awcc\-native
+or
+.BR dell\-pc .
+By default the most capable available backend is chosen.
+.TP
+.BR \-v , " \-\-verbose"
+Debug logging.
+.TP
+.BR \-q , " \-\-quiet"
+Warnings and errors only.
+.SH FAN BOOST SEMANTICS
+The firmware does not accept an absolute fan PWM. It accepts a
+.I boost
+value from 0 to 255 which raises the floor of the firmware's own fan curve,
+approximately
+.PP
+.RS
+pwm = pwm_base + (boost / 255) * (pwm_max \- pwm_base)
+.RE
+.PP
+So
+.B g15ctl fan 50
+guarantees the fan runs at least around half speed; the firmware will still
+spin it faster if it decides more cooling is needed. This is why a boost can
+never make the machine run hotter than leaving it on automatic.
+.SH BACKENDS
+.TP
+.B awcc\-acpi
+Calls the firmware's WMAX method through
+.IR /proc/acpi/call .
+The only backend supporting thermal profiles, G\-Mode and per\-fan boost
+together. Requires the
+.B acpi_call
+module and root.
+.TP
+.B awcc\-native
+The in\-tree
+.B alienware\-wmi
+driver loaded with
+.BR force_platform_profile=1 .
+Provides profiles and G\-Mode. Manual fan control additionally needs kernel
+6.15 or newer with
+.BR force_hwmon=1 .
+.TP
+.B dell\-pc
+The generic Dell SMBIOS thermal driver. Profiles only. Always present, so
+.B g15ctl
+degrades rather than failing.
+.SH DUAL BOOT
+Fan boost and G\-Mode are volatile EC state, but survive a warm reboot.
+.B g15ctl
+therefore clears them on shutdown via
+.BR g15ctl\-reset.service ,
+so a reboot into Windows always hands Alienware Command Center the firmware
+default. Nothing is written to BIOS NVRAM.
+.SH SAFETY
+A watchdog in the background service monitors the hottest relevant sensor.
+Above 88 C it forces the fans to maximum regardless of the requested speed;
+above 95 C it releases control to the firmware entirely, on the grounds that
+the firmware's curve is thermally validated and a user\-space curve is not.
+.SH FILES
+.TP
+.I /etc/g15ctl/config.json
+Policy: default mode, watchdog thresholds, fan curve.
+.TP
+.I /var/lib/g15ctl/state.json
+Last applied mode, used by
+.BR restore .
+.TP
+.I /var/log/g15ctl/g15ctl.log
+Rotating log file.
+.TP
+.I /etc/modprobe.d/g15ctl.conf
+Module parameters enabling the native AWCC driver.
+.SH EXIT STATUS
+0 on success, 1 on error, 130 if interrupted.
+.SH EXAMPLES
+.TP
+Quiet the machine down:
+.B sudo g15ctl mode quiet
+.TP
+Pin the fans at 70% before a long compile:
+.B sudo g15ctl fan 70
+.TP
+Hand the fans back to the firmware:
+.B sudo g15ctl fan auto
+.TP
+Watch what is happening:
+.B g15ctl monitor
+.SH SEE ALSO
+.BR sensors (1),
+.BR journalctl (1),
+.BR powerprofilesctl (1)
+.PP
+Kernel documentation:
+.I Documentation/admin-guide/laptops/alienware-wmi.rst
+.SH AUTHORS
+Developed and verified against a Dell G15 5530, BIOS 1.34.0, by reading the
+machine's own ACPI tables rather than porting constants from other models.

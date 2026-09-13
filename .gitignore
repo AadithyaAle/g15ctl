@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# NOTE: probe-report.txt, probe2-report.txt, probe3-report.txt and
+# verify-report.txt are deliberately NOT ignored. They are the measured
+# evidence behind log.md, and on a hardware reverse-engineering project the
+# raw reports are worth keeping under version control.
+
+# Large regenerable ACPI dumps, if you ever copy them into the tree
+*.dsl
+*.dat
+
+# Release tarball produced for the installer
+g15ctl.tar.gz

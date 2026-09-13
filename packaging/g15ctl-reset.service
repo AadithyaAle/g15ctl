@@ -1,0 +1,21 @@
+[Unit]
+Description=g15ctl: return thermal control to firmware on shutdown
+Documentation=man:g15ctl(1)
+# This unit exists purely for its ExecStop. systemd stops enabled units during
+# shutdown and reboot, which gives us a reliable hook to clear G-Mode and any
+# fan boost.
+#
+# Why this matters on a dual-boot machine: G-Mode and fan boost are volatile EC
+# state, but "volatile" means lost on power removal, not on a warm reboot. If
+# Linux left G-Mode asserted and you rebooted straight into Windows, Alienware
+# Command Center could come up disagreeing with the EC. Clearing it here means
+# Windows and AWCC always start from the firmware default.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/bin/g15ctl reset
+
+[Install]
+WantedBy=multi-user.target

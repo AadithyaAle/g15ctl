@@ -1,0 +1,36 @@
+MIT License
+
+Copyright (c) 2026 g15ctl contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+ADDITIONAL NOTE ON HARDWARE CONTROL
+
+This software writes to your laptop's embedded controller through ACPI. It
+raises the floor of the firmware's own fan curve and never disables the
+firmware's thermal protection, and it includes a watchdog that returns control
+to the firmware when temperatures climb. Even so, it is provided without
+warranty of any kind, as stated above. Use it at your own risk.
+
+This is an independent implementation. It is not affiliated with, endorsed by,
+or derived from any Dell Technologies or Alienware software. "Dell",
+"Alienware", "G15" and "Alienware Command Center" are trademarks of their
+respective owners and are used here only to describe compatibility.

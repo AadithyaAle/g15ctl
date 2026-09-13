@@ -1,0 +1,94 @@
+
+===== ENVIRONMENT =====
+  product : Dell G15 5530
+  bios    : 1.34.0
+  kernel  : 6.14.0-35-generic
+  date    : 2026-09-13T18:26:00+05:30
+
+===== BACKEND DETECTION =====
+  g15ctl 1.0.0 diagnostics
+  
+  [  ok  ] Dell G-series laptop               Dell Inc. / Dell G15 5530
+  [  ok  ] BIOS version                       1.34.0
+  [  ok  ] Kernel                             6.14.0-35-generic
+  [  ok  ] Running as root                    yes
+  
+  Firmware interfaces
+  [  ok  ] AWCC WMI device present            A70591CE-A997-11DA-B012-B622A1EF5492
+  [  ok  ] dell_wmi_ddv sensors               /sys/class/hwmon/hwmon6
+  [  ok  ] acpi_call module                   /proc/acpi/call
+  [  ok  ] alienware-wmi platform profile     native AWCC profiles available
+  
+  Backends
+  [  ok  ] awcc-acpi                          fan_boost, fan_limits, gmode, profiles
+  [  ok  ] awcc-native                        gmode, profiles
+  [  ok  ] dell-pc                            profiles
+  
+  Conflicts
+  [  ok  ] power-profiles-daemon inactive     not running
+  [  ok  ] tuned inactive                     not running
+  [ warn ] thermald                           active: manages Intel RAPL power limits, not fans. Coexists fine.
+  
+  Selected backend
+  [  ok  ] awcc-acpi                          modes: balanced, balanced-performance, low-power, quiet, g-mode
+  [  ok  ] thermal profile switching          
+  [  ok  ] G-Mode toggle                      
+  [  ok  ] manual fan speed                   
+  [  ok  ] fan min/max RPM reporting          
+
+  active backend: awcc-acpi
+  [ ok ] most capable backend (awcc-acpi) selected as root
+
+===== BASELINE =====
+  mode=balanced gmode=OFF cpu=65C fans=1098/1286 rpm
+
+===== TEST 1: THERMAL PROFILE SWITCHING =====
+  firmware reports: balanced balanced-performance low-power quiet
+  [ ok ] mode balanced applied and read back
+  [ ok ] mode balanced-performance applied and read back
+  [ ok ] mode low-power applied and read back
+  [ ok ] mode quiet applied and read back
+
+===== TEST 2: PROFILE EFFECT ON FAN SPEED =====
+  quiet:                fans=1028/1185 rpm  cpu=65C
+  balanced-performance: fans=1808/2132 rpm  cpu=65C
+  [ ok ] performance fan speed >= quiet (1808 >= 1028)
+
+===== TEST 3: MANUAL FAN BOOST (the AWCC feature kernel 6.14 cannot do natively) =====
+  fan auto:  1490/1793 rpm
+  fan 40%:  2730/2992 rpm   (firmware boost byte: 102)
+  [ ok ] fan 40% raised RPM above auto (2730 > 1490)
+  fan 70%:  3942/4149 rpm   (firmware boost byte: 178)
+  [ ok ] fan 70% raised RPM above auto (3942 > 1490)
+  fan 100%:  4716/4773 rpm   (firmware boost byte: 255)
+  [ ok ] fan 100% raised RPM above auto (4716 > 1490)
+  [ ok ] RPM scales with boost (40%=2730 < 100%=4716)
+  fan auto:  4115/4149 rpm  (released)
+  [ ok ] releasing control returned fans toward firmware control
+
+===== TEST 4: G-MODE =====
+  gmode on:  status=ON fans=2974/3053 rpm  (was: 4115 4149)
+  [ ok ] G-Mode reports ON
+  [ ok ] current profile reads back as g-mode (0xAB)
+  [ ok ] G-Mode turned off
+
+===== TEST 5: SAFETY -- reset hands control back to firmware =====
+  after reset: boost=0 gmode=off mode=balanced
+  [ ok ] fan boost cleared to 0
+  [ ok ] G-Mode cleared
+  [ ok ] default profile restored
+         this is exactly what runs before shutdown, so Windows/AWCC sees a clean EC
+
+===== TEST 6: SENSOR CROSS-CHECK (WMAX vs dell_ddv) =====
+         WMAX     : {'0x32': 1842, '0x33': 1977}
+         dell_ddv : {'CPU Fan': 1895, 'Video Fan': 2031}
+  [ ok ] independent interfaces agree within 250 rpm
+
+===== SUMMARY =====
+  passed: 17
+  failed: 0
+  RESULT: ALL CHECKS PASSED
+
+===== RESTORING ORIGINAL STATE =====
+  restored: mode=balanced gmode=OFF fan=auto
+  live: Thermal mode:  BALANCED   backend awcc-acpi   CPU    1895 rpm  [█████████░░░░░░░░░░░░░]  39%  of 4800 

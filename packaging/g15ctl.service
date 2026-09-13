@@ -1,0 +1,44 @@
+[Unit]
+Description=g15ctl thermal and fan control for Dell G-series
+Documentation=man:g15ctl(1)
+# The AWCC interface lives behind ACPI/WMI, so wait until the platform drivers
+# and sysfs are up before touching it.
+After=systemd-modules-load.service sysinit.target
+Wants=systemd-modules-load.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/g15ctl daemon
+# The daemon resets fan boost and G-Mode itself on SIGTERM; this is a belt-and
+# braces guarantee for the case where it died uncleanly, so that a reboot into
+# Windows never inherits thermal state we set.
+ExecStopPost=-/usr/bin/g15ctl reset
+Restart=on-failure
+RestartSec=5s
+
+# The service only needs to talk to ACPI, hwmon and its own state directory.
+StateDirectory=g15ctl
+LogsDirectory=g15ctl
+ConfigurationDirectory=g15ctl
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+# @module is needed because the daemon will load acpi_call itself if
+# modules-load.d did not get to it first; without it modprobe fails with
+# EPERM and manual fan control silently disappears.
+SystemCallFilter=@system-service @module
+CapabilityBoundingSet=CAP_SYS_RAWIO CAP_DAC_OVERRIDE CAP_SYS_MODULE
+# /proc/acpi/call must stay writable, so ProtectKernelTunables and a read-only
+# /proc are deliberately not enabled here.
+
+[Install]
+WantedBy=multi-user.target

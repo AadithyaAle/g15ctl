@@ -1,0 +1,282 @@
+
+===== SYSTEM =====
+date         : 2026-09-13T17:33:57+05:30
+kernel       : 6.14.0-35-generic
+product      : Dell G15 5530
+vendor       : Dell Inc.
+bios         : 1.34.0
+bios date    : 05/26/2026
+board        : 0NMHYY
+distro       : Ubuntu 25.10
+secureboot   : SecureBoot disabled
+
+===== LOADED DELL/WMI/ALIENWARE MODULES =====
+dell_pc                12288  0
+dell_laptop            40960  0
+dell_wmi               28672  1 dell_laptop
+dell_wmi_sysman        49152  0
+alienware_wmi          32768  0
+dell_smbios            36864  3 dell_wmi,dell_pc,dell_laptop
+dcdbas                 20480  1 dell_smbios
+platform_profile       20480  2 alienware_wmi,dell_pc
+dell_smm_hwmon         36864  0
+firmware_attributes_class    12288  1 dell_wmi_sysman
+dell_wmi_ddv           24576  0
+dell_wmi_descriptor    20480  2 dell_wmi,dell_smbios
+wmi_bmof               12288  0
+sparse_keymap          12288  2 intel_hid,dell_wmi
+video                  77824  6 nvidia_wmi_ec_backlight,dell_wmi,dell_laptop,xe,i915,nvidia_modeset
+wmi                    28672  10 dell_wmi_sysman,video,nvidia_wmi_ec_backlight,dell_wmi_ddv,alienware_wmi,dell_wmi,wmi_bmof,dell_smm_hwmon,dell_smbios,dell_wmi_descriptor
+
+===== ALIENWARE-WMI MODULE CAPABILITIES =====
+--- alienware_wmi (/lib/modules/6.14.0-35-generic/kernel/drivers/platform/x86/dell/alienware-wmi.ko.zst)
+parm:           force_platform_profile:Forces auto-detecting thermal profiles without checking if WMI thermal backend is available (bool)
+parm:           force_gmode:Forces G-Mode when performance profile is selected (bool)
+--- alienware_wmi_wmax: not present
+--- alienware_wmi_legacy: not present
+
+===== PLATFORM PROFILE =====
+platform-profile-0: name=dell-pc
+    choices: cool quiet balanced performance
+    current: balanced
+legacy acpi node: balanced [choices: cool quiet balanced performance]
+
+===== HWMON INVENTORY =====
+--- /sys/class/hwmon/hwmon0 (AC)
+--- /sys/class/hwmon/hwmon1 (BAT0)
+--- /sys/class/hwmon/hwmon2 (nvme)
+      temp1_input = 51850
+      temp2_input = 50850
+      temp3_input = 51850
+      temp1_label = Composite
+      temp2_label = Sensor 1
+      temp3_label = Sensor 2
+--- /sys/class/hwmon/hwmon3 (nvme)
+      temp1_input = 32850
+      temp1_label = Composite
+--- /sys/class/hwmon/hwmon4 (ucsi_source_psy_USBC000:001)
+--- /sys/class/hwmon/hwmon5 (dell_smm)
+--- /sys/class/hwmon/hwmon6 (dell_ddv)
+      fan1_input = 1059
+      fan2_input = 1245
+      fan1_label = CPU Fan
+      fan2_label = Video Fan
+      temp1_input = 65000
+      temp2_input = 55000
+      temp3_input = 37000
+      temp4_input = 53000
+      temp5_input = 53000
+      temp6_input = 53000
+      temp7_input = 50000
+      temp1_label = CPU
+      temp2_label = Unknown
+      temp3_label = Unknown
+      temp4_label = Video
+      temp5_label = SODIMM
+      temp6_label = SODIMM 2
+      temp7_label = Charger
+--- /sys/class/hwmon/hwmon7 (spd5118)
+      temp1_input = 54750
+--- /sys/class/hwmon/hwmon8 (coretemp)
+      temp10_input = 55000
+      temp14_input = 55000
+      temp18_input = 56000
+      temp1_input = 64000
+      temp22_input = 55000
+      temp26_input = 59000
+      temp27_input = 59000
+      temp28_input = 59000
+      temp29_input = 58000
+      temp2_input = 56000
+      temp30_input = 55000
+      temp31_input = 55000
+      temp32_input = 56000
+      temp33_input = 55000
+      temp6_input = 53000
+      temp10_label = Core 8
+      temp14_label = Core 12
+      temp18_label = Core 16
+      temp1_label = Package id 0
+      temp22_label = Core 20
+      temp26_label = Core 24
+      temp27_label = Core 25
+      temp28_label = Core 26
+      temp29_label = Core 27
+      temp2_label = Core 0
+      temp30_label = Core 28
+      temp31_label = Core 29
+      temp32_label = Core 30
+      temp33_label = Core 31
+      temp6_label = Core 4
+--- /sys/class/hwmon/hwmon9 (iwlwifi_1)
+      temp1_input = 55000
+
+===== WMI DEVICES (AWCC = A70591CE-A997-11DA-B012-B622A1EF5492) =====
+  05901221-D566-11D1-B2F0-00A0C9062910          obj=CC     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-1        obj=CC     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-10       obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-2        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-3        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-4        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-5        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-6        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-7        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-8        obj=MO     inst=1   driver=wmi-bmof
+  05901221-D566-11D1-B2F0-00A0C9062910-9        obj=MO     inst=1   driver=wmi-bmof
+  0894B8D6-44A6-4719-97D7-6AD24108BFD4          obj=PW     inst=3   driver=(unbound)
+  1426C3BD-9602-4488-9ED2-0823A81AB703          obj=BE     inst=1   driver=(unbound)
+  1426C3BD-9602-4488-9ED2-0823A81AB7A6          obj=FL     inst=1   driver=(unbound)
+  1426C3BD-9602-4488-9ED2-0823A81AB7A8          obj=BB     inst=1   driver=(unbound)
+  1F13AB7F-6220-4210-8F8E-8BB5E71EE969          obj=DB     inst=1   driver=(unbound)
+  2BC49DEF-7B15-4F05-8BB7-EE37B9547C0B          obj=DE     inst=1   driver=(unbound)
+  3ABF4149-D42A-4095-A81B-2689631D32C3          obj=EL     inst=2   driver=(unbound)
+  45E43335-6975-4B18-8546-A15B04D7DB96          obj=PD     inst=1   driver=(unbound)
+  5F21F08A-F16B-460D-A299-7CFD5B6345BC          obj=PS     inst=1   driver=(unbound)
+  603E9613-EF25-4338-A3D0-C46177516DB7          obj=AA     inst=1   driver=(unbound)
+  67DF4DF2-5FC1-43A2-B825-DA6EC08AD05B          obj=OA     inst=1   driver=(unbound)
+  6932965F-1671-4CEB-B988-D3AB0A901919          obj=DS     inst=1   driver=dell-privacy
+  70FE8229-D03B-4214-A1C6-1F884B1A892A          obj=SI     inst=1   driver=dell-wmi-sysman-password
+  73CC3936-FB0A-461E-9476-0BDA47CEDF18          obj=GL     inst=15  driver=(unbound)
+  8A42EA14-4F2A-FD45-6422-0087F7A7E608          obj=DV     inst=1   driver=dell-wmi-ddv
+  8D9DDCBC-A997-11DA-B012-B622A1EF5492          obj=AA     inst=1   driver=dell-wmi-descriptor
+  9DBB5994-A997-11DA-B012-B622A1EF5492          obj=       inst=1   driver=dell-wmi
+  A6FEA33E-DABF-46F5-BFC8-460D961BEC9F          obj=       inst=1   driver=(unbound)
+  A70591CE-A997-11DA-B012-B622A1EF5492          obj=AX     inst=1   driver=(unbound)
+  A80593CE-A997-11DA-B012-B622A1EF5492          obj=BA     inst=1   driver=dell-smbios
+  F1DDEE52-063C-4784-A11E-8A06684B9B01          obj=DM     inst=1   driver=(unbound)
+  F1DDEE52-063C-4784-A11E-8A06684B9BF4          obj=DL     inst=1   driver=dell-wmi-sysman
+  F1DDEE52-063C-4784-A11E-8A06684B9BF5          obj=BL     inst=110 driver=(unbound)
+  F1DDEE52-063C-4784-A11E-8A06684B9BF9          obj=AL     inst=2   driver=(unbound)
+  F1DDEE52-063C-4784-A11E-8A06684B9BFA          obj=CL     inst=8   driver=(unbound)
+
+===== DSDT: LOCATE WMAX METHOD =====
+decompiled: /tmp/g15ctl-probe/dsdt.dsl (136635 lines)
+
+-- scopes/devices declaring a WMAX method --
+
+-- candidate AWCC device names --
+125360:        Device (AMW0)
+126051:        Device (AMW2)
+127393:        Device (AMW5)
+128071:        Device (AMW4)
+128967:        Device (AMWV)
+
+-- _WDG / WMI GUID bindings mentioning AX (WMAX) --
+
+-- WMAX method body written to /tmp/g15ctl-probe/wmax-method.txt (0 lines) --
+
+===== AWCC READ-ONLY QUERIES VIA acpi_call =====
+using ACPI path: \_SB.AMW2.WMAX
+acpi_call loaded.
+
+-- 0x14/0x02 system description (fans, sensors, profile count) --
+  Error: AE_NOT_FOUND
+
+-- 0x14/0x0b CURRENT thermal profile (0xab => G-Mode active) --
+  Error: AE_NOT_FOUND
+
+-- 0x14/0x03 resource id enumeration (fan + sensor ids) --
+  index 0  -> Error: AE_NOT_FOUND
+  index 1  -> Error: AE_NOT_FOUND
+  index 2  -> Error: AE_NOT_FOUND
+  index 3  -> Error: AE_NOT_FOUND
+  index 4  -> Error: AE_NOT_FOUND
+  index 5  -> Error: AE_NOT_FOUND
+  index 6  -> Error: AE_NOT_FOUND
+  index 7  -> Error: AE_NOT_FOUND
+  index 8  -> Error: AE_NOT_FOUND
+  index 9  -> Error: AE_NOT_FOUND
+  index 10 -> Error: AE_NOT_FOUND
+  index 11 -> Error: AE_NOT_FOUND
+  index 12 -> Error: AE_NOT_FOUND
+  index 13 -> Error: AE_NOT_FOUND
+  index 14 -> Error: AE_NOT_FOUND
+  index 15 -> Error: AE_NOT_FOUND
+
+-- per-id detail: 0x04=temp 0x05=rpm 0x08=min_rpm 0x09=max_rpm 0x0c=boost --
+  id 0x01  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x02  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x03  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x04  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x05  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x06  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x32  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+  id 0x33  temp=Error: AE_NOT_FOUND rpm=Error: AE_NOT_FOUND min=Error: AE_NOT_FOUND max=Error: AE_NOT_FOUND boost=Error: AE_NOT_FOUND
+
+-- probing which thermal profile IDs the firmware knows (0x14/0x03 style check) --
+  profile 0x96  -> Error: AE_NOT_FOUND
+  profile 0x97  -> Error: AE_NOT_FOUND
+  profile 0x98  -> Error: AE_NOT_FOUND
+  profile 0x99  -> Error: AE_NOT_FOUND
+  profile 0xa0  -> Error: AE_NOT_FOUND
+  profile 0xa1  -> Error: AE_NOT_FOUND
+  profile 0xa2  -> Error: AE_NOT_FOUND
+  profile 0xa3  -> Error: AE_NOT_FOUND
+  profile 0xa4  -> Error: AE_NOT_FOUND
+  profile 0xa5  -> Error: AE_NOT_FOUND
+  profile 0xab  -> Error: AE_NOT_FOUND
+
+(acpi_call left loaded; 'sudo modprobe -r acpi_call' to unload)
+
+===== DELL SMBIOS / DDV EXTRAS =====
+dell_smm attributes: 0 pwm nodes found
+DELL0033:00
+alienware-wmi
+dell-laptop
+dell-pc
+dell-smbios.0
+dell_smm_hwmon
+
+-- dell-wmi-ddv battery extras --
+  capacity = 49
+  charge_full = 3947000
+  charge_full_design = 4815000
+  cycle_count = 281
+  temp = 377
+
+===== RECENT KERNEL MESSAGES (dell/alienware/acpi) =====
+[20955.704509] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.709866] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.714877] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.719936] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.725193] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.730413] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.736652] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.740364] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.742598] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.745099] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.747637] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.750572] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.753615] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.757042] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.761825] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.766705] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.773112] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.779847] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.785271] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.791097] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.796689] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.802462] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.808361] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.813290] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.819108] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.824967] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.830346] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.834563] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.838559] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.844128] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.849928] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.855628] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.861982] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.867522] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.873623] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.878870] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.884010] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.888941] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.894977] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+[20955.900405] acpi_call: Cannot get handle: Error: AE_NOT_FOUND
+
+===== DONE =====
+Full artifacts in: /tmp/g15ctl-probe
+  dsdt.dsl         - decompiled ACPI tables
+  wmax-method.txt  - the WMAX method body (authoritative method IDs)
